@@ -1,0 +1,27 @@
+[project]
+name = "shazam-from-scratch"
+version = "0.1.0"
+description = "HKN workshop: build an audio fingerprinter (Shazam) from scratch"
+readme = "FACILITATOR_GUIDE.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+    "ipykernel>=6.25",    # lets Jupyter / VS Code use this env as a kernel
+]
+
+[project.optional-dependencies]
+# Only needed with USE_REAL_AUDIO = True (loads .mp3/.m4a/.wav files)
+audio = ["librosa>=0.10"]
+
+[dependency-groups]
+# For regenerating the notebooks with build_notebooks.py and test-running them
+dev = [
+    "nbformat>=5.9",
+    "nbclient>=0.8",
+    "jupyterlab>=4.0",
+]
+
+[tool.uv]
+package = false   # a notebook project, not an installable library
