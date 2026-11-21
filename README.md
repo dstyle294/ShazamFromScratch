@@ -1,7 +1,6 @@
 # Shazam from Scratch: Facilitator Guide (60 min)
 
-**Audience:** HKN inductees (EE/CS undergrads who know the FFT and Python).
-**The one sentence:** Shazam turns audio into a constellation of spectrogram peaks, hashes pairs of peaks into fingerprints, and identifies a song by finding which track's fingerprints agree on one consistent time offset.
+**The idea**: Shazam turns audio into a constellation of spectrogram peaks, hashes pairs of peaks into fingerprints, and identifies a song by finding which track's fingerprints agree on one consistent time offset.
 
 ## Files
 
@@ -20,7 +19,7 @@ uv run python -m ipykernel install --user --name shazam-from-scratch --display-n
 uv run python build_notebooks.py           # regenerate notebooks after editing the source
 ```
 
-Everything uses only numpy, scipy, and matplotlib, all preinstalled in Colab. The whole solution runs in under 10 s. **No dataset download is needed:** the notebook synthesizes 8 original songs with fixed seeds, so every student sees the same results.
+Everything uses only numpy, scipy, and matplotlib, all preinstalled in Colab. The whole solution runs in under 10 s. You can either use syntethic songs or download your own mp3/wav files and import them.
 
 ## Timeline (~25 min of hands-on coding inside the hour)
 
@@ -34,7 +33,7 @@ Everything uses only numpy, scipy, and matplotlib, all preinstalled in Colab. Th
 | 40–48 | The aha plot | Talk | Scatter diagonal → histogram spike. Spend time here. |
 | 48–60 | Stress test + wrap-up | Run + discuss | Discuss the "no match" threshold and the speed-up failure. Point to Wang 2003. |
 
-**Buffer:** if you're behind at minute 30, tell everyone to open the *Stuck?* box for TODO 3 and move straight to the aha plot. If you're ahead, use the "if you finish early" prompts at the end of Part 4.
+**Buffer:** if you're behind, tell everyone to open the *Stuck?* box for TODO 3 and move straight to the aha plot. If you're ahead, use the "if you finish early" prompts at the end of Part 4.
 
 ### Hook talking points (not in the notebook)
 

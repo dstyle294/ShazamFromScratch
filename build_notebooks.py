@@ -89,7 +89,16 @@ This cell **synthesizes** 8 original songs, so there's nothing to download. *You
 ''')
 
 code(r'''
-# Synthesized music library (feel free to skip reading this cell)
+USE_REAL_AUDIO = False
+AUDIO_DIR = "songs"
+''')
+
+code(r'''
+# ----------------------------------
+# Synthesized music generation (feel free to skip reading this cell) 
+# I don't understand the syntethic music generation either :(
+# ----------------------------------
+
 SONG_NAMES = ["Fourier Nights", "Nyquist Shuffle", "Aliasing Blues", "Phase-Locked Love",
               "Bode to Joy", "Lowpass Lullaby", "Eigen Groove", "Midnight Modem"]
 SONG_SECONDS = 30
@@ -140,10 +149,12 @@ def make_song(seed, seconds=SONG_SECONDS):
     out = out[:int(seconds * FS)]
     out += 10 ** (-30 / 20) * np.sqrt(np.mean(out ** 2)) * rng.standard_normal(len(out))  # faint hiss, like a real recording
     return out / np.abs(out).max()
+''')
 
-# Optional: load real audio instead
-USE_REAL_AUDIO = False
-AUDIO_DIR = "songs"
+code(r'''
+# ----------------------------------
+# Load audio
+# ----------------------------------
 
 def load_audio(path, seconds=SONG_SECONDS):
     """Load an audio file as mono at FS (uses librosa, which Colab has preinstalled)."""
@@ -197,7 +208,7 @@ md(r'''
 ---
 ## Part 1 · From audio to a constellation map
 
-A **spectrogram** is a heatmap: time on x, frequency on y, color = energy (in dB). We compute it with a short-time FFT: 1024-sample windows that step forward 512 samples at a time.
+A **spectrogram** is a heatmap: time on x, frequency on y, color = energy (in dB). We compute it with a short-time FFT (Fast-Fourier Transform): 1024-sample windows that step forward 512 samples at a time.
 ''')
 
 code(r'''
@@ -211,10 +222,11 @@ def plot_spectrogram(S_db, title="", ax=None, peaks=None, max_hz=FS / 2):
     n_freq, n_time = S_db.shape
     hz_per_bin = FS / NPERSEG
     vmax = S_db.max()
-    ax.imshow(S_db, origin="lower", aspect="auto", cmap="Greys", vmin=vmax - 60, vmax=vmax,
-              extent=[0, n_time * FRAME_SEC, 0, n_freq * hz_per_bin])
+    im = ax.imshow(S_db, origin="lower", aspect="auto", cmap="magma", vmin=vmax - 60, vmax=vmax,
+                   extent=[0, n_time * FRAME_SEC, 0, n_freq * hz_per_bin])
+    ax.figure.colorbar(im, ax=ax, label="energy (dB)", pad=0.01)
     if peaks is not None and len(peaks):
-        ax.scatter(peaks[:, 1] * FRAME_SEC, peaks[:, 0] * hz_per_bin, s=14, c=ORANGE,
+        ax.scatter(peaks[:, 1] * FRAME_SEC, peaks[:, 0] * hz_per_bin, s=14, c=AQUA,
                    edgecolors="white", linewidths=0.6, label=f"{len(peaks)} peaks")
         ax.legend(loc="upper right", frameon=False)
     ax.set(ylim=(0, max_hz), xlabel="time (s)", ylabel="frequency (Hz)", title=title)
