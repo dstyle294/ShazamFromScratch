@@ -80,9 +80,27 @@ How the files are processed:
 Things to know:
 - **Use at least 7 tracks.** The Part 4 stress test uses songs 1, 2, 4 and 6 by index, so it raises an `IndexError` with fewer. With 8–10 tracks you'll also get a convincing "wrong song" in the aha plot.
 - The expected numbers above are for the synthetic library. Real tracks give different peak counts and scores, so do a dry run first.
-## Live phone demo (bonus, not a dependency)
+- To load more than the first 30 s of each track, raise `SONG_SECONDS` in the settings cell. Loading and fingerprinting take longer.
 
-Colab can't easily capture the mic. Play a song from the notebook through the speakers, record 10 s on a phone's voice memo app, upload the file through the 📁 sidebar, and run `identify(load_audio("file.m4a", seconds=10))`. `load_audio` reads `.m4a` through ffmpeg, which Colab has; locally you may need to install ffmpeg or convert the memo to `.wav` first. Room noise is unpredictable, so do this only if there's time.
+## Recording mode: identify a phone recording (bonus, not a dependency)
+
+Colab can't easily capture the mic, so record on a phone and upload the file. The recording then replaces the generated query, and the notebook identifies it.
+
+1. **Make sure the song is in the library.** Either use real music ([Using your own songs](#using-your-own-songs)) with the song in `songs/`, or play one of the synthetic songs from the notebook through the speakers.
+2. **Record about 5–10 s** with the phone's voice memo app. The clip has to come from the part of the song that's loaded (the first `SONG_SECONDS`, 30 s by default).
+3. **Upload it.** Locally, put it in `samples/`. In Colab, create a `samples` folder in the 📁 sidebar and upload it there.
+4. **Point the notebook at it.** In the settings cell at the top of Part 0, set `RECORDING = "samples/your_clip.wav"`. `RECORDING_SECONDS` (default 5) sets how much of the recording to use, starting from its beginning. Then run all cells.
+
+What changes with a recording:
+- There's no known answer, so the "truth" line isn't printed. The aha plot compares the **best match** with the runner-up and draws the diagonal at the matched offset.
+- The Part 1 plots and the noise slider show song 0 next to the query, because the notebook doesn't know which song it is yet.
+- A score in the single digits means no match (see the "no match" threshold above).
+
+To just check a file without re-running everything, run `identify(load_audio("your_clip.wav", seconds=10))` in any cell after Part 3.
+
+**File formats:** `.wav` is safest. `load_audio` reads `.m4a` voice memos through ffmpeg, which Colab has. Locally you may need to install ffmpeg or convert the memo first: `ffmpeg -i "<pathname>" -acodec pcm_s16le -ar 44100 "<pathname to convert to>"`.
+
+**Tested** with the 9 tracks in `songs/`: `human_nature_sample.wav` matched Human Nature (score 31) and `cc_mall_sample.wav` matched Coconut Mall (score 32). `human_nature_sample_noisy.wav` did **not** match (top score 2), so a quiet room matters.
 
 ## Discussion answers, quick reference
 

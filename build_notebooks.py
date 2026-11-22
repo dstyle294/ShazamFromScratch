@@ -91,6 +91,12 @@ This cell **synthesizes** 8 original songs, so there's nothing to download. *You
 code(r'''
 USE_REAL_AUDIO = False
 AUDIO_DIR = "songs"
+SONG_SECONDS = 30
+
+# 📱 Recording mode: set to the path of your own recording (e.g. "samples/my_clip.wav")
+# to identify it instead of a generated clip. None = use a generated clip.
+RECORDING = None
+RECORDING_SECONDS = 5     # how much of the recording to use, from its start
 ''')
 
 code(r'''
@@ -101,7 +107,6 @@ code(r'''
 
 SONG_NAMES = ["Fourier Nights", "Nyquist Shuffle", "Aliasing Blues", "Phase-Locked Love",
               "Bode to Joy", "Lowpass Lullaby", "Eigen Groove", "Midnight Modem"]
-SONG_SECONDS = 30
 SCALES = {"major": [0, 2, 4, 5, 7, 9, 11], "minor": [0, 2, 3, 5, 7, 8, 10],
           "pentatonic": [0, 2, 4, 7, 9], "dorian": [0, 2, 3, 5, 7, 9, 10]}
 
@@ -182,6 +187,8 @@ md(r'''
 ### The query: a short, noisy, time-shifted clip
 
 This is what a phone hears: **5 seconds** from **somewhere** in a song, buried in noise. `make_query` is the "mystery clip" generator we'll use all session.
+
+> 📱 **Recording mode:** set `RECORDING` (in the settings cell at the top of Part 0) to a file you recorded on your phone, and that recording becomes the query instead. The song must be in the library, so use `USE_REAL_AUDIO = True` with that song in `songs/`, or record one of the synthetic songs as it plays.
 ''')
 
 code(r'''
@@ -196,10 +203,17 @@ def make_query(song_id, start_sec, seconds=5, snr_db=0, rng=None):
     start = int(start_sec * FS)
     return add_noise(songs[song_id][start:start + int(seconds * FS)], snr_db, rng)
 
-# A random song and start time: pretend we don't know these!
-SECRET_SONG = np.random.randint(len(songs))
-SECRET_START = round(np.random.uniform(0, len(songs[SECRET_SONG]) / FS - 5), 1)   # leave room for a 5 s clip
-query = make_query(SECRET_SONG, SECRET_START, snr_db=0, rng=0)
+if RECORDING is None:
+    # A random song and start time: pretend we don't know these!
+    SECRET_SONG = np.random.randint(len(songs))
+    SECRET_START = round(np.random.uniform(0, len(songs[SECRET_SONG]) / FS - 5), 1)   # leave room for a 5 s clip
+    query = make_query(SECRET_SONG, SECRET_START, snr_db=0, rng=0)
+else:
+    # Your recording: this time we really don't know the answer
+    query = load_audio(RECORDING, seconds=RECORDING_SECONDS)
+    SECRET_SONG, SECRET_START = None, None
+
+SHOW_SONG = SECRET_SONG if SECRET_SONG is not None else 0   # song to plot next to the query
 play(query)
 ''')
 
@@ -233,11 +247,11 @@ def plot_spectrogram(Spectrogram_db, title="", ax=None, peaks=None, max_hz=FS / 
         ax.legend(loc="upper right", frameon=False)
     ax.set(ylim=(0, max_hz), xlabel="time (s)", ylabel="frequency (Hz)", title=title)
 
-f, t, S_song = compute_spectrogram(songs[SECRET_SONG])
+f, t, S_song = compute_spectrogram(songs[SHOW_SONG])
 _, _, S_query = compute_spectrogram(query)
 fig, axes = plt.subplots(1, 2, figsize=(13, 4), gridspec_kw={"width_ratios": [3, 1]})
-plot_spectrogram(S_song, f"Full song: {SONG_NAMES[SECRET_SONG]}", axes[0])
-plot_spectrogram(S_query, "Noisy 5 s query", axes[1])
+plot_spectrogram(S_song, f"Full song: {SONG_NAMES[SHOW_SONG]}", axes[0])
+plot_spectrogram(S_query, f"Noisy {len(query) / FS:.0f} s query", axes[1])
 plt.tight_layout()
 print("S_song shape (freq bins, time frames):", S_song.shape)
 ''')
@@ -303,7 +317,7 @@ Below we add noise to the clean audio and check what fraction of the clean peaks
 code(r'''
 SNR_DB = 0      # 🔧 try 20, 0, -5, -10
 
-clean = songs[SECRET_SONG][int(10 * FS):int(15 * FS)]
+clean = songs[SHOW_SONG][int(10 * FS):int(15 * FS)]
 noisy = add_noise(clean, SNR_DB, rng=1)
 p_clean = find_peaks(compute_spectrogram(clean)[2])
 p_noisy = find_peaks(compute_spectrogram(noisy)[2])
@@ -464,7 +478,8 @@ def identify(clip):
 ranked = identify(query)
 song_id, score, offset = ranked[0]
 print(f"\n🎵 It's '{SONG_NAMES[song_id]}', starting at {offset:.1f} s   (score {score})")
-print(f"   truth: '{SONG_NAMES[SECRET_SONG]}' at {SECRET_START} s")
+if SECRET_SONG is not None:
+    print(f"   truth: '{SONG_NAMES[SECRET_SONG]}' at {SECRET_START} s")
 ''')
 
 md(r'''
@@ -493,12 +508,16 @@ def plot_match(clip, song_ids, labels, true_offset=None):
         ax.legend(frameon=False)
     plt.tight_layout()
 
-ids, labels = [SECRET_SONG], [f"true song: {SONG_NAMES[SECRET_SONG]}"]
-wrong = next((sid for sid, _, _ in ranked if sid != SECRET_SONG), None)   # best-scoring wrong song, if any
+# With a recording we don't know the truth, so compare the best match against the runner-up
+true_song = SECRET_SONG if SECRET_SONG is not None else ranked[0][0]
+true_offset = SECRET_START if SECRET_START is not None else ranked[0][2]
+kind = "true song" if SECRET_SONG is not None else "best match"
+ids, labels = [true_song], [f"{kind}: {SONG_NAMES[true_song]}"]
+wrong = next((sid for sid, _, _ in ranked if sid != true_song), None)   # best-scoring other song, if any
 if wrong is not None:
     ids.append(wrong)
     labels.append(f"wrong song: {SONG_NAMES[wrong]}")
-plot_match(query, ids, labels, true_offset=SECRET_START)
+plot_match(query, ids, labels, true_offset=true_offset)
 ''')
 
 md(r'''
@@ -551,7 +570,7 @@ md(r'''
 - The algorithm *always* returns a best guess. Looking at the scores, how would you decide to answer **"no match"**?
 - Why does a 5% speed-up break it completely? *(Every frequency bin and every Δt shifts, so no hash matches exactly.)*
 
-**🔧 If you finish early:** find the noise level or clip length where it breaks, or record a song from this notebook on your phone, upload it, and run `identify(load_audio("your_file.m4a", seconds=10))`.
+**🔧 If you finish early:** find the noise level or clip length where it breaks, or record a song from this notebook on your phone, upload it, set `RECORDING` at the top, and re-run everything (or just run `identify(load_audio("your_file.wav", seconds=10))`).
 
 ---
 ## Wrap-up
