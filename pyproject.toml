@@ -12,8 +12,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Only needed with USE_REAL_AUDIO = True (loads .mp3/.m4a/.wav files)
-audio = ["librosa>=0.10"]
+# Only needed with USE_REAL_AUDIO = True or RECORDING (loads audio files; gdown fetches the shared Drive folder)
+audio = ["librosa>=0.10", "gdown>=5.0"]
 
 [dependency-groups]
 # For regenerating the notebooks with build_notebooks.py and test-running them

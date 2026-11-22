@@ -85,13 +85,17 @@ md(r'''
 
 This cell **synthesizes** 8 original songs, so there's nothing to download. *You don't need to read it.*
 
-> Want real music? Set `USE_REAL_AUDIO = True` and put `.wav`/`.mp3` files in a `songs/` folder. In Colab, use the 📁 sidebar to upload them. Everything downstream works unchanged.
+> Want real music? Set `USE_REAL_AUDIO = True`. You can also use a Google Drive link, paste it into `DRIVE_FOLDER_URL` and the songs download automatically. Otherwise, put `.wav`/`.mp3`/`.flac`/`.ogg` files in a `songs/` folder (in Colab, use the 📁 sidebar to upload them). Everything downstream works unchanged.
 ''')
 
 code(r'''
 USE_REAL_AUDIO = False
 AUDIO_DIR = "songs"
 SONG_SECONDS = 30
+
+# 🔗 Google Drive folder (shared as "Anyone with the link") containing a songs/ folder
+# and optionally a samples/ folder of recordings. Downloaded on first run. "" = don't download.
+DRIVE_FOLDER_URL = ""
 
 # 📱 Recording mode: set to the path of your own recording (e.g. "samples/my_clip.wav")
 # to identify it instead of a generated clip. None = use a generated clip.
@@ -160,16 +164,40 @@ code(r'''
 # ----------------------------------
 # Load audio
 # ----------------------------------
+import importlib, subprocess, sys
+from pathlib import Path
+
+AUDIO_EXTS = {".wav", ".mp3", ".flac", ".ogg"}
+
+def _require(package):
+    """Import a package, installing it first if needed (Colab normally has these already)."""
+    try:
+        return importlib.import_module(package)
+    except ImportError:
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q", package], check=True)
+        return importlib.import_module(package)
 
 def load_audio(path, seconds=SONG_SECONDS):
-    """Load an audio file as mono at FS (uses librosa, which Colab has preinstalled)."""
-    import librosa
-    x, _ = librosa.load(path, sr=FS, mono=True, duration=seconds)
+    """Load an audio file as mono at FS."""
+    x, _ = _require("librosa").load(path, sr=FS, mono=True, duration=seconds)
     return x / (np.abs(x).max() + 1e-12)
 
+def fetch_from_drive(url):
+    """Download the shared Drive folder into the current folder, unless the songs are already here."""
+    have_songs = Path(AUDIO_DIR).is_dir() and any(p.suffix.lower() in AUDIO_EXTS for p in Path(AUDIO_DIR).iterdir())
+    if url and not have_songs:
+        print("Downloading songs from Google Drive...")
+        _require("gdown").download_folder(url, output=".", quiet=True)
+
+if USE_REAL_AUDIO or RECORDING:
+    fetch_from_drive(DRIVE_FOLDER_URL)
+
 if USE_REAL_AUDIO:
-    from pathlib import Path
-    files = sorted(p for p in Path(AUDIO_DIR).iterdir() if p.suffix.lower() in {".wav", ".mp3", ".flac", ".ogg"})
+    if not Path(AUDIO_DIR).is_dir():
+        raise FileNotFoundError(f"No '{AUDIO_DIR}/' folder. Set DRIVE_FOLDER_URL, or upload your songs into '{AUDIO_DIR}/'.")
+    files = sorted(p for p in Path(AUDIO_DIR).iterdir() if p.suffix.lower() in AUDIO_EXTS)
+    if not files:
+        raise FileNotFoundError(f"No {'/'.join(sorted(AUDIO_EXTS))} files in '{AUDIO_DIR}/'.")
     SONG_NAMES = [p.stem for p in files]
     songs = [load_audio(p) for p in files]
 else:
