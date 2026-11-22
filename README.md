@@ -88,39 +88,40 @@ Things to know:
 
 Students in Colab don't have your `songs/` folder, so the notebook can download it from a shared Google Drive folder with `gdown`. Colab normally has `gdown` and `librosa` preinstalled; if it doesn't, the notebook installs them.
 
-**1. Make small copies of the songs.** Students only need what the notebook uses: the first 30 s of each track, in mono, at 11,025 Hz. The full tracks in `songs/` are 397 MB, and the trimmed copies are 7 MB in total. Small files also matter because Drive blocks a file with *"Too many users have viewed or downloaded this file recently"* when a whole room downloads large files at once.
+**1. Make small copies of the songs.** Students only need what the notebook uses: the first 30 s of each track, in mono, at 11,025 Hz. The full tracks in `songs/` are 397 MB, and the trimmed copies are about 6 MB in total. Small files also matter because Drive blocks a file with *"Too many users have viewed or downloaded this file recently"* when a whole room downloads large files at once.
 
 ```bash
-mkdir -p drive_upload/songs drive_upload/samples
+mkdir -p drive_upload
 for f in songs/*; do n=$(basename "${f%.*}")
-  ffmpeg -loglevel error -y -i "$f" -t 30 -ac 1 -ar 11025 -c:a pcm_s16le "drive_upload/songs/$n.wav"
+  ffmpeg -loglevel error -y -i "$f" -t 30 -ac 1 -ar 11025 -c:a pcm_s16le "drive_upload/$n.wav"
 done
-cp samples/*.wav drive_upload/samples/      # optional: recordings for recording mode
 ```
 
-`drive_upload/` is already built from the current `songs/` and `samples/`. With these copies, the samples match the same songs at the same offsets as with the full tracks. If you raise `SONG_SECONDS`, change `-t 30` to match.
+These trimmed copies give the same matches as the full tracks. If you raise `SONG_SECONDS`, change `-t 30` to match.
 
-**2. Upload and share.** Upload the **contents** of `drive_upload/` (the `songs` and `samples` folders) into one Drive folder. Then use Share → General access → **Anyone with the link** (Viewer), and copy the link.
+**2. Upload and share.** Put the song files **directly** in one Drive folder, with no subfolders. Then use Share → General access → **Anyone with the link** (Viewer), and copy the link.
 
 ```
 <your Drive folder>/          ← share this folder's link
-├── songs/      9 × .wav
-└── samples/    recordings (optional)
+├── Martin Garrix - Animals.wav
+├── Michael Jackson - Human Nature.wav
+└── ...
 ```
 
-The folder must contain `songs/` and `samples/` as subfolders. `gdown` copies the folder's contents into the notebook's working directory (`/content` in Colab). If the audio files sit directly in the shared folder instead of in `songs/`, the notebook won't find them. `gdown` downloads at most 50 files per folder.
+The notebook downloads every file in that folder straight into `songs/` (`AUDIO_DIR`) and uses them as the song library. Song names come from the file names. Only audio files (`.wav`, `.mp3`, `.flac`, `.ogg`) are used. Anything else in the folder is downloaded but ignored, and subfolders are downloaded as subfolders but not searched. `gdown` downloads at most 50 files per folder.
 
 **3. Point the notebook at it.** In the settings cell at the top of Part 0:
 
 ```python
 USE_REAL_AUDIO = True
 DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/<id>?usp=sharing"
-RECORDING = "samples/human_nature_sample.wav"   # optional
 ```
 
 To give these defaults to every student, make the change in `build_notebooks.py` and rebuild. Otherwise students paste the link in themselves. Any standard folder-link format works, with or without `?usp=sharing`.
 
-The download runs on the first run of the "Load audio" cell. It's skipped when `songs/` already has audio in it, so re-running that cell doesn't download again. After a Colab runtime reset, everything is downloaded again. If `USE_REAL_AUDIO = True`, there's no link, and `songs/` is empty, the cell stops with an error message explaining what to do.
+The download runs on the first run of the "Load audio" cell, and only when `USE_REAL_AUDIO = True`. It's skipped when `songs/` already has audio in it, so re-running that cell doesn't download again. After a Colab runtime reset, everything is downloaded again. If `USE_REAL_AUDIO = True`, there's no link, and `songs/` is empty, the cell stops with an error message explaining what to do.
+
+Recordings for [recording mode](#recording-mode-identify-a-phone-recording-bonus-not-a-dependency) aren't part of this download. Upload them separately (see below).
 
 ## Recording mode: identify a phone recording (bonus, not a dependency)
 
@@ -128,7 +129,7 @@ Colab can't easily capture the mic, so record on a phone and upload the file. Th
 
 1. **Make sure the song is in the library.** Either use real music ([Using your own songs](#using-your-own-songs)) with the song in `songs/`, or play one of the synthetic songs from the notebook through the speakers.
 2. **Record about 5–10 s** with the phone's voice memo app. The clip has to come from the part of the song that's loaded (the first `SONG_SECONDS`, 30 s by default).
-3. **Upload it.** Locally, put it in `samples/`. In Colab, create a `samples` folder in the 📁 sidebar and upload it there, or include it in the shared Drive folder's `samples/` ([Sharing songs through Google Drive](#sharing-songs-through-google-drive-colab)).
+3. **Upload it.** Locally, put it in `samples/`. In Colab, create a `samples` folder in the 📁 sidebar and upload it there. Don't put recordings in the shared songs folder: everything in it becomes part of the song library.
 4. **Point the notebook at it.** In the settings cell at the top of Part 0, set `RECORDING = "samples/your_clip.wav"`. `RECORDING_SECONDS` (default 5) sets how much of the recording to use, starting from its beginning. Then run all cells.
 
 What changes with a recording:

@@ -93,8 +93,8 @@ USE_REAL_AUDIO = False
 AUDIO_DIR = "songs"
 SONG_SECONDS = 30
 
-# 🔗 Google Drive folder (shared as "Anyone with the link") containing a songs/ folder
-# and optionally a samples/ folder of recordings. Downloaded on first run. "" = don't download.
+# 🔗 Google Drive folder of songs (shared as "Anyone with the link"). Every audio file in it
+# is downloaded into AUDIO_DIR and becomes the song library. "" = don't download.
 DRIVE_FOLDER_URL = ""
 
 # 📱 Recording mode: set to the path of your own recording (e.g. "samples/my_clip.wav")
@@ -183,13 +183,13 @@ def load_audio(path, seconds=SONG_SECONDS):
     return x / (np.abs(x).max() + 1e-12)
 
 def fetch_from_drive(url):
-    """Download the shared Drive folder into the current folder, unless the songs are already here."""
+    """Download the files in the shared Drive folder straight into AUDIO_DIR (skipped if already downloaded)."""
     have_songs = Path(AUDIO_DIR).is_dir() and any(p.suffix.lower() in AUDIO_EXTS for p in Path(AUDIO_DIR).iterdir())
     if url and not have_songs:
-        print("Downloading songs from Google Drive...")
-        _require("gdown").download_folder(url, output=".", quiet=True)
+        print(f"Downloading songs from Google Drive into '{AUDIO_DIR}/'...")
+        _require("gdown").download_folder(url, output=AUDIO_DIR, quiet=True)
 
-if USE_REAL_AUDIO or RECORDING:
+if USE_REAL_AUDIO:
     fetch_from_drive(DRIVE_FOLDER_URL)
 
 if USE_REAL_AUDIO:
