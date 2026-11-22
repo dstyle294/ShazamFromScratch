@@ -196,7 +196,9 @@ def make_query(song_id, start_sec, seconds=5, snr_db=0, rng=None):
     start = int(start_sec * FS)
     return add_noise(songs[song_id][start:start + int(seconds * FS)], snr_db, rng)
 
-SECRET_SONG, SECRET_START = 3, 12.3      # pretend we don't know these!
+# A random song and start time: pretend we don't know these!
+SECRET_SONG = np.random.randint(len(songs))
+SECRET_START = round(np.random.uniform(0, len(songs[SECRET_SONG]) / FS - 5), 1)   # leave room for a 5 s clip
 query = make_query(SECRET_SONG, SECRET_START, snr_db=0, rng=0)
 play(query)
 ''')
@@ -461,7 +463,7 @@ def identify(clip):
 
 ranked = identify(query)
 song_id, score, offset = ranked[0]
-print(f"\n🎵 It's '{SONG_NAMES[song_id]}', starting at {offset:.1f} s   (score {score}; runner-up score was {ranked[1][1]})")
+print(f"\n🎵 It's '{SONG_NAMES[song_id]}', starting at {offset:.1f} s   (score {score})")
 print(f"   truth: '{SONG_NAMES[SECRET_SONG]}' at {SECRET_START} s")
 ''')
 
@@ -491,9 +493,12 @@ def plot_match(clip, song_ids, labels, true_offset=None):
         ax.legend(frameon=False)
     plt.tight_layout()
 
-wrong = ranked[1][0]
-plot_match(query, [SECRET_SONG, wrong],
-           [f"true song: {SONG_NAMES[SECRET_SONG]}", f"wrong song: {SONG_NAMES[wrong]}"], true_offset=offset)
+ids, labels = [SECRET_SONG], [f"true song: {SONG_NAMES[SECRET_SONG]}"]
+wrong = next((sid for sid, _, _ in ranked if sid != SECRET_SONG), None)   # best-scoring wrong song, if any
+if wrong is not None:
+    ids.append(wrong)
+    labels.append(f"wrong song: {SONG_NAMES[wrong]}")
+plot_match(query, ids, labels, true_offset=SECRET_START)
 ''')
 
 md(r'''
