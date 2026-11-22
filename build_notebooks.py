@@ -213,16 +213,16 @@ A **spectrogram** is a heatmap: time on x, frequency on y, color = energy (in dB
 
 code(r'''
 def compute_spectrogram(x):
-    """Returns (freqs_hz, times_sec, S_db) where S_db has shape (n_freq_bins, n_time_frames)."""
+    """Returns (freqs_hz, times_sec, Spectrogram_db) where Spectrogram_db has shape (n_freq_bins, n_time_frames)."""
     f, t, S = spectrogram(x, fs=FS, nperseg=NPERSEG, noverlap=NPERSEG - HOP)
     return f, t, 10 * np.log10(S + 1e-10)
 
-def plot_spectrogram(S_db, title="", ax=None, peaks=None, max_hz=FS / 2):
+def plot_spectrogram(Spectrogram_db, title="", ax=None, peaks=None, max_hz=FS / 2):
     ax = ax or plt.gca()
-    n_freq, n_time = S_db.shape
+    n_freq, n_time = Spectrogram_db.shape
     hz_per_bin = FS / NPERSEG
-    vmax = S_db.max()
-    im = ax.imshow(S_db, origin="lower", aspect="auto", cmap="magma", vmin=vmax - 60, vmax=vmax,
+    vmax = Spectrogram_db.max()
+    im = ax.imshow(Spectrogram_db, origin="lower", aspect="auto", cmap="magma", vmin=vmax - 60, vmax=vmax,
                    extent=[0, n_time * FRAME_SEC, 0, n_freq * hz_per_bin])
     ax.figure.colorbar(im, ax=ax, label="energy (dB)", pad=0.01)
     if peaks is not None and len(peaks):
@@ -250,24 +250,25 @@ A point is a **peak** if it is
 2. **loud enough**, meaning more than `threshold_db` above the spectrogram's mean, so quiet background bumps don't count.
 
 Tools:
-- `maximum_filter(S_db, size=neighborhood)` returns an array where every pixel holds the max of its neighborhood. So `maximum_filter(S_db, ...) == S_db` is `True` exactly at the local maxima.
+- `maximum_filter(Spectrogram_db, size=neighborhood)` returns an array where every pixel holds the max of its neighborhood. So `maximum_filter(Spectrogram_db, ...) == Spectrogram_db` returns the local maxima.
 - `np.argwhere(mask)` returns the `(row, col)` = `(freq_idx, time_idx)` of every `True`.
 - **Sort the peaks by time**, since Part 2 depends on it. `peaks[np.argsort(peaks[:, 1], kind="stable")]` does this.
 ''')
 
 code(r'''
-def find_peaks(S_db, neighborhood=(20, 20), threshold_db=10):
+def find_peaks(Spectrogram_db, neighborhood=(20, 20), threshold_db=10):
     """Return an int array of shape (n_peaks, 2): columns are (freq_idx, time_idx), sorted by time."""
 #S     # ✏️ TODO 1: your code here (about 4 lines)
-#S     local_max = ...
-#S     loud = ...
-#S     peaks = ...
-#S     return ...
+#S     local_max = maximum_filter(Spectrogram_db, size=???) == Spectrogram_db
+#S     loud = Spectrogram_db > ??? + ???
+#S     # extract the points that are past the threshold and local maxima
+#S     peaks = np.argwhere(local_max & loud) 
+#S     return peaks[np.argsort(peaks[:, 1], kind="stable")] # stable ensures we have a predictable way of handling duplicates
     # >>> SOLUTION
-    local_max = maximum_filter(S_db, size=neighborhood) == S_db
-    loud = S_db > S_db.mean() + threshold_db
+    local_max = maximum_filter(Spectrogram_db, size=neighborhood) == Spectrogram_db
+    loud = Spectrogram_db > Spectrogram_db.mean() + threshold_db
     peaks = np.argwhere(local_max & loud)
-    return peaks[np.argsort(peaks[:, 1], kind="stable")]
+    return peaks[np.argsort(peaks[:, 1], kind="stable")] # stable ensures we have a predictable way of handling duplicates
     # <<< SOLUTION
 ''')
 
@@ -340,7 +341,9 @@ This hash contains **no absolute time**, so it's the same whether the clip start
 Each peak (the *anchor*) pairs only with the next `fan_out` peaks after it, rather than with every peak, which would be $O(n^2)$.
 
 ### ✏️ TODO 2: `fingerprint`
-For each anchor `(f1, t1)` at index `i`, loop over the targets `peaks[i+1 : i+1+fan_out]`. For each target `(f2, t2)`, if `0 < dt <= max_dt`, append `((f1, f2, dt), t1)`.
+For each anchor `(f1, t1)` at index `i`, loop over the targets `peaks[i+1 : i+1+fan_out]`. For each target `(f2, t2)`, if `0 < dt <= max_dt`, append `((f1, f2, dt), t1)`. 
+
+Only keep positive ∆t's to ensure no duplicates.
 ''')
 
 code(r'''
@@ -348,6 +351,11 @@ def fingerprint(peaks, fan_out=10, max_dt=200):
     """Return a list of (hash_key, anchor_time) where hash_key = (f1, f2, dt)."""
     hashes = []
 #S     # ✏️ TODO 2: your code here (about 5 lines)
+#S     for i, (f1, t1) in enumerate(peaks):
+#S         for f2, t2 in peaks[i + 1:i + 1 + fan_out]:
+#S             dt = ??? 
+#S             if 0 < dt <= max_dt:
+#S                 ???
 #S
     # >>> SOLUTION
     for i, (f1, t1) in enumerate(peaks):
@@ -372,7 +380,7 @@ print(f"✅ fingerprint works! The query has {len(query_hashes)} hashes, e.g. {q
 # Visualize the anchor -> target-zone pairs for a few anchors
 fig, ax = plt.subplots(figsize=(11, 4))
 plot_spectrogram(S_query, "Anchor peaks (blue) paired with their fan-out targets", ax)
-ax.scatter(query_peaks[:, 1] * FRAME_SEC, query_peaks[:, 0] * FS / NPERSEG, s=10, c=GREY, alpha=0.5)
+ax.scatter(query_peaks[:, 1] * FRAME_SEC, query_peaks[:, 0] * FS / NPERSEG, s=10, c=AQUA, alpha=0.5)
 for i in range(0, len(query_peaks), max(1, len(query_peaks) // 6))[:6]:
     f1, t1 = query_peaks[i]
     for f2, t2 in query_peaks[i + 1:i + 11]:
@@ -420,6 +428,9 @@ def vote(query_hashes, db):
     """Return {song_id: Counter({offset: n_votes})}."""
     votes = defaultdict(Counter)
 #S     # ✏️ TODO 3: your code here (about 3 lines)
+#S     for key, t_q in query_hashes:
+#S         for song_id, t_s in db.get(key, []):
+#S             ???
 #S
     # >>> SOLUTION
     for key, t_q in query_hashes:
@@ -429,9 +440,15 @@ def vote(query_hashes, db):
     return votes
 ''')
 
+md(r'''
+> Why do we do `votes[song_id][t_s - t_q]` instead of doing the scatterplot of query-song matches and finding diagonal line? 
+
+This is essentially the same thing, the idea is that if two songs are the same, the sample and query should match pretty frequently for the same `t_s - t_q` since the offset will remain constant between the song and query sample.
+''')
+
 code(r'''
 # ✅ Check TODO 3
-toy_db = {(1, 2, 3): [(0, 10), (1, 99)], (4, 5, 6): [(0, 11)]}
+toy_db = {(1, 2, 3): [(0, 10), (1, 99)], (4, 5, 6): [(0, 11)]} # each (f_1, f_2, ∆t) is as good as a hashed version of it in this dict
 toy_votes = vote([((1, 2, 3), 5), ((4, 5, 6), 6)], toy_db)
 assert toy_votes[0] == Counter({5: 2}) and toy_votes[1] == Counter({94: 1}), dict(toy_votes)
 print("✅ vote works!")
@@ -444,7 +461,7 @@ def identify(clip):
 
 ranked = identify(query)
 song_id, score, offset = ranked[0]
-print(f"\n🎵 It's '{SONG_NAMES[song_id]}', starting at {offset:.1f} s   (score {score}; runner-up score {ranked[1][1]})")
+print(f"\n🎵 It's '{SONG_NAMES[song_id]}', starting at {offset:.1f} s   (score {score}; runner-up score was {ranked[1][1]})")
 print(f"   truth: '{SONG_NAMES[SECRET_SONG]}' at {SECRET_START} s")
 ''')
 
