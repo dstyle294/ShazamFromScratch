@@ -19,7 +19,7 @@ uv run python -m ipykernel install --user --name shazam-from-scratch --display-n
 uv run python build_notebooks.py           # regenerate notebooks after editing the source
 ```
 
-Everything uses only numpy, scipy, and matplotlib, all preinstalled in Colab. The whole solution runs in under 10 s. You can either use syntethic songs or download your own mp3/wav files and import them.
+Everything uses only numpy, scipy, and matplotlib, all preinstalled in Colab. The whole solution runs in under 10 s. By default the notebook generates its own synthetic songs. To use real music instead, see [Using your own songs](#using-your-own-songs).
 
 ## Timeline (~25 min of hands-on coding inside the hour)
 
@@ -44,11 +44,13 @@ Everything uses only numpy, scipy, and matplotlib, all preinstalled in Colab. Th
 | Compare the full **spectrogram** | Every pixel is affected by noise, and it's a huge amount of data to search. |
 | ✅ Keep only the **loudest time-frequency points** | They survive noise, cheap speakers, MP3 compression, and room echo. |
 
-## Expected results (synthesized library, so these reproduce exactly)
+## Expected results (synthesized library)
 
-- Song constellation: about 500 peaks (~17/s). Query: about 70 peaks, 634 hashes.
+The main query picks a **random song and start time** on every run, so its exact numbers change each time. Everything else reproduces exactly.
+
+- Song constellation: about 500 peaks (~17/s). Query: about 70 peaks, roughly 600 hashes.
 - Noise slider at 0 dB: only **~35–50%** of clean peaks survive. That's fine, and Part 4 matches at −10 dB. "We only need enough survivors to agree" is the lesson.
-- Main query: Phase-Locked Love at 12.3 s, score 28 vs runner-up 2.
+- Main query: the correct song and start time, typically with a score around 30–150 while every other song stays in single digits.
 - Stress test: clean, phone, and −10 dB are all identified (scores 39–202). The not-in-library and 5% speed-up clips both get a top score of 1, which suggests a "no match" rule of score ≥ ~10.
 - Fan-out trade-off (presenter fact; this cell was cut from the notebook): at −10 dB, fan_out 1 gives 30% accuracy, 5 gives 93%, 10 gives 97%, and 20 gives 100%, with 50× the database size of fan_out 1.
 
@@ -58,11 +60,29 @@ Everything uses only numpy, scipy, and matplotlib, all preinstalled in Colab. Th
 - [ ] Do a dry run in a fresh Colab runtime: Runtime → Run all on the solution notebook.
 - [ ] Have `shazam_solution_executed.ipynb` open in a second tab as a fallback.
 - [ ] Check that laptop audio reaches the room's speakers (the hook depends on it).
-- [ ] Optional: to use real music, set `USE_REAL_AUDIO = True` and put 8–10 royalty-free tracks in `songs/` (e.g. from Free Music Archive). Then re-check the expected numbers above, since they will change.
+- [ ] Optional: to use real music, follow [Using your own songs](#using-your-own-songs) and do a full dry run with your tracks.
 
+## Using your own songs
+
+The notebook can fingerprint real music instead of the synthetic library.
+
+1. **Add the files.** Create a folder named `songs/` next to the notebook and put the tracks in it.
+   - **Supported formats:** `.wav`, `.mp3`, `.flac`, `.ogg`. Any other file in the folder, including `.m4a`, is silently skipped.
+   - **Song names** come from the file names: `Martin Garrix - Animals.wav` appears as `Martin Garrix - Animals`.
+   - **In Colab:** open the 📁 sidebar, create a `songs` folder, and upload into it. Uploads are deleted when the runtime resets, so re-upload after a restart.
+2. **Turn it on.** In the first cell under the setup cell, set `USE_REAL_AUDIO = True` (`AUDIO_DIR` sets the folder name). Re-run from that cell down.
+3. **Install the decoder locally.** Loading uses `librosa`. Colab already has it; locally, run `uv sync --extra audio`.
+
+How the files are processed:
+- Only the **first 30 s** of each track is loaded (`SONG_SECONDS`), converted to mono at 11,025 Hz. Queries come from that window, so intros with silence or slow fades make weaker fingerprints.
+- Use tracks that are **at least 30 s long**. The query and the noise-slider cell take clips from up to 30 s into a song.
+
+Things to know:
+- **Use at least 7 tracks.** The Part 4 stress test uses songs 1, 2, 4 and 6 by index, so it raises an `IndexError` with fewer. With 8–10 tracks you'll also get a convincing "wrong song" in the aha plot.
+- The expected numbers above are for the synthetic library. Real tracks give different peak counts and scores, so do a dry run first.
 ## Live phone demo (bonus, not a dependency)
 
-Colab can't easily capture the mic. Play a song from the notebook through the speakers, record 10 s on a phone's voice memo app, upload the file through the 📁 sidebar, and run `identify(load_audio("file.m4a", seconds=10))`. Room noise is unpredictable, so do this only if there's time.
+Colab can't easily capture the mic. Play a song from the notebook through the speakers, record 10 s on a phone's voice memo app, upload the file through the 📁 sidebar, and run `identify(load_audio("file.m4a", seconds=10))`. `load_audio` reads `.m4a` through ffmpeg, which Colab has; locally you may need to install ffmpeg or convert the memo to `.wav` first. Room noise is unpredictable, so do this only if there's time.
 
 ## Discussion answers, quick reference
 
